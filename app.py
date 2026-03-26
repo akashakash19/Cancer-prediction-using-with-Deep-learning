@@ -1,28 +1,44 @@
 import streamlit as st
 import numpy as np
 import pickle
+from tensorflow.keras.models import load_model
 
 # =========================
-# LOAD MODEL & SCALER
+# LOAD MODEL
 # =========================
-model = pickle.load(open("model.pkl", "rb"))
+model = load_model("model.h5")
 scaler = pickle.load(open("scaler.pkl", "rb"))
 
 # =========================
-# UI DESIGN
+# PAGE CONFIG
 # =========================
-st.set_page_config(page_title="Cancer Prediction", page_icon="🧠")
-
-st.title("🧠 Breast Cancer Prediction System")
-st.markdown("### Enter patient details below:")
+st.set_page_config(
+    page_title="AI Cancer Predictor",
+    page_icon="🧠",
+    layout="wide"
+)
 
 # =========================
-# INPUT FIELDS (BETTER UI)
+# CUSTOM STYLE
 # =========================
-col1, col2 = st.columns(2)
+st.markdown("""
+<style>
+.big-title {font-size:40px; font-weight:bold; color:#4CAF50;}
+.card {
+    padding:20px;
+    border-radius:10px;
+    background-color:#f5f5f5;
+    box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+}
+</style>
+""", unsafe_allow_html=True)
 
-input_data = []
+st.markdown('<p class="big-title">🧠 AI Breast Cancer Prediction</p>', unsafe_allow_html=True)
+st.markdown("### Enter patient details")
 
+# =========================
+# FEATURES
+# =========================
 features = [
     "mean radius", "mean texture", "mean perimeter", "mean area",
     "mean smoothness", "mean compactness", "mean concavity",
@@ -35,36 +51,55 @@ features = [
     "worst concave points", "worst symmetry", "worst fractal dimension"
 ]
 
-# split inputs into 2 columns
-for i in range(15):
-    val = col1.number_input(features[i], value=0.0)
-    input_data.append(val)
+# =========================
+# AUTO FILL BUTTON
+# =========================
+if st.button("⚡ Auto Fill Sample Data"):
+    input_data = [15]*30
+else:
+    input_data = []
 
-for i in range(15, 30):
-    val = col2.number_input(features[i], value=0.0)
+# =========================
+# INPUT UI (SLIDERS)
+# =========================
+cols = st.columns(3)
+
+for i, feature in enumerate(features):
+    val = cols[i % 3].slider(feature, 0.0, 1000.0, float(input_data[i] if input_data else 0))
     input_data.append(val)
 
 # =========================
-# PREDICTION BUTTON
+# PREDICTION
 # =========================
 if st.button("🔍 Predict"):
 
-    input_array = np.array(input_data).reshape(1, -1)
+    input_array = np.array(input_data[:30]).reshape(1, -1)
     input_scaled = scaler.transform(input_array)
 
     prediction = model.predict(input_scaled)
+    prob = prediction[0][0]
 
-    probability = prediction[0][0]
+    st.markdown("## 📊 Prediction Result")
 
-    st.subheader("📊 Result:")
-
-    if probability > 0.5:
-        st.success(f"✅ No Cancer (Benign)\n\nConfidence: {probability:.2f}")
+    if prob > 0.5:
+        st.success("✅ No Cancer (Benign)")
+        st.progress(int(prob * 100))
+        st.write(f"Confidence: {prob:.2f}")
     else:
-        st.error(f"❗ Cancer Detected (Malignant)\n\nConfidence: {1 - probability:.2f}")
+        st.error("❗ Cancer Detected (Malignant)")
+        st.progress(int((1 - prob) * 100))
+        st.write(f"Confidence: {1 - prob:.2f}")
 
 # =========================
-# FOOTER
+# SIDEBAR INFO
 # =========================
-st.markdown("---")
-st.markdown("👨‍💻 Developed by FAHHH | AI/ML Project")
+st.sidebar.title("ℹ️ About")
+st.sidebar.info("""
+This app predicts whether a tumor is benign or malignant using a deep learning model.
+
+- Input: 30 medical features
+- Output: Cancer prediction
+- Built with TensorFlow & Streamlit
+""")
+
+st.sidebar.success("Developed by FAHHH 🚀")
